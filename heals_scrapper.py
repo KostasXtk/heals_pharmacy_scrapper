@@ -86,7 +86,7 @@ def healspharmacy_category(cat_depth, cat_link):
                     products.append(product)
                     seen_barcodes.add(barcode)
 
-                    if len(seen_barcodes) >= 850:
+                    if len(seen_barcodes) >= 50:
                         for product in products:
                             print(product)
                         return products
@@ -96,16 +96,39 @@ def healspharmacy_category(cat_depth, cat_link):
 
     return products
 
+def healspharmacy_product(product_link):
+    resp = fetch(product_link)
+    if resp is None:
+        return []
+    soup = BeautifulSoup(resp.text, "lxml")
+    images_urls = []
+    for script in soup.find_all("script", type="application/ld+json"):
+        data = json.loads(script.string)
+        items = data if isinstance(data, list) else [data]
+        for item in items:
+            if item.get("@type") == "Product":
+                img = item.get("image", [])
+                images_urls = [img] if isinstance(img, str) else img
+
+    # there are 2 desc parts splitted based on BARCODE keyword [0] equals the actual desc || [1] equals to the value of the BARCODE
+    description_parts = soup.select_one("div#tab-1.col-12.tab-content.current").text.split('BARCODE')
+    product_dict = {
+        'title': re.sub(r'(?:\s*[-|]\s*Heals(?:\.gr)?)+$', '', soup.title.get_text(strip=True)),
+        'description' : description_parts[0],
+        'barcode' : description_parts[1].strip(),
+        'sku-product_id': soup.find("adv-product-gallery")[":product-id"],
+        'price' : soup.select_one("div.d-flex.w-100.justify-content-between.p-page-product-price span[itemprop='price']").text,
+        'imageUrls' : images_urls
+    }
+
+    return product_dict
+    
 
 
 
-    # if max_pages>1:  # we need to make sure that Κολοστομία edge case is handled
-    #     for page in range(1, max_pages + 1):
-    #         url = build_page_url(cat_link, page)
-    #         print(url)
 
 
-    # url = cat_link # this is EDGE CASE REMOVE THIS
+
 
 def main():
 
@@ -113,7 +136,13 @@ def main():
     # healspharmacy_category(None, "https://www.heals.gr/%CE%B3%CE%B9%CE%B1-%CF%84%CE%BF%CE%BD-%CE%B1%CE%BD%CF%84%CF%81%CE%B1/1.htm")
 
     # kolostomia case
-    healspharmacy_category(None, "https://www.heals.gr/%CE%B3%CE%B7%CF%81%CE%B9%CE%B1%CF%84%CF%81%CE%B9%CE%BA%CE%B1-3%CE%B7-%CE%B7%CE%BB%CE%B9%CE%BA%CE%B9%CE%B1/%CF%83%CF%84%CE%BF%CE%BC%CE%B9%CE%B5%CF%83.htm")
+    # healspharmacy_category(None, "https://www.heals.gr/%CE%B3%CE%B7%CF%81%CE%B9%CE%B1%CF%84%CF%81%CE%B9%CE%BA%CE%B1-3%CE%B7-%CE%B7%CE%BB%CE%B9%CE%BA%CE%B9%CE%B1/%CF%83%CF%84%CE%BF%CE%BC%CE%B9%CE%B5%CF%83.htm")
+
+    healspharmacy_product("https://www.heals.gr/vendors/cerave/cerave-moisturizing-cream-%CE%B5%CE%BD%CF%85%CE%B4%CE%B1%CF%84%CE%B9%CE%BA%CE%B7-%CE%BA%CF%81%CE%B5%CE%BC%CE%B1-454gr.htm")
+    healspharmacy_product("https://www.heals.gr/vendors/la-roche-posay/la-roche-posay-effaclar-cleansing-foaming-gel-%CE%BA%CE%B1%CE%B8%CE%B1%CF%81%CE%B9%CF%83%CE%BC%CE%BF%CF%85-%CF%80%CF%81%CE%BF%CF%83%CF%89%CF%80%CE%BF%CF%85-%CE%B3%CE%B9%CE%B1-%CE%B4%CE%B5%CF%81%CE%BC%CE%B1-%CE%BC%CE%B5-%CF%84%CE%B1%CF%83%CE%B7-%CE%B1%CE%BA%CE%BC%CE%B7%CF%83-400ml.htm")
+
+
+
 
 
 if __name__ == "__main__":
